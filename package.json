@@ -1,0 +1,38 @@
+{
+  "name": "@jgretz/github-rename",
+  "version": "1.0.0",
+  "description": "utility to rename all github repo master to main",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "format": "prettier --write **/*.ts",
+    "lint": "eslint src/**/*.ts",
+    "clean-build": "rm -rf ./build",
+    "compile": "tsc -p .",
+    "build": "yarn format && yarn lint && yarn clean-build && yarn compile",
+    "prepublishOnly": "yarn build",
+    "start": "ts-node src/index.ts"
+  },
+  "authors": [
+    "jgretz"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/core": "^3.0.0",
+    "axios": "^0.19.2",
+    "shelljs": "^0.8.4"
+  },
+  "devDependencies": {
+    "@types/node": "^14.0.13",
+    "@types/shelljs": "^0.8.8",
+    "@typescript-eslint/eslint-plugin": "^3.2.0",
+    "@typescript-eslint/parser": "^3.2.0",
+    "eslint": "^7.2.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-plugin-import": "^2.21.2",
+    "eslint-plugin-prettier": "^3.1.3",
+    "prettier": "^2.0.5",
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.5"
+  }
+}
