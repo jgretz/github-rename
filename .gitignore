@@ -43,3 +43,7 @@ build/
 
 #JetBrains project files
 .idea/
+
+# my stuff
+private.ts
+working-temp/
