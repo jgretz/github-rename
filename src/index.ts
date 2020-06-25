@@ -1,17 +1,11 @@
-import {Octokit} from '@octokit/core';
+import {Octokit} from '@octokit/rest';
 import shell from 'shelljs';
 import util from 'util';
+import simpleGit, {SimpleGit} from 'simple-git';
 
-import {ACCESS_TOKEN} from './private';
+import {GitRepo} from './types';
+import settings from './private';
 import {forEachSynchronous} from './forEach';
-
-// types
-interface GitRepo {
-  name: string;
-  full_name: string;
-  ssh_url: string;
-  default_branch: string;
-}
 
 // constants
 const WORKING_DIR = './working-temp';
@@ -35,6 +29,14 @@ const removeWorkingDirectory = () => {
 
 const shellExec = util.promisify(shell.exec);
 
+const isMasterTheDefaultBranch = ({default_branch}: GitRepo): boolean => {
+  return default_branch === 'master';
+};
+
+const isRepoEmpty = (repoDir: string): boolean => {
+  return shell.ls(repoDir).length === 0;
+}
+
 // git methods
 const requestReposPage = async (octokit: Octokit, page: number): Promise<Array<GitRepo>> => {
   const {data} = await octokit.request(`/user/repos?affiliation=owner&page=${page}&per_page=100`);
@@ -48,52 +50,55 @@ const requestRepos = async (octokit: Octokit): Promise<Array<GitRepo>> => {
   const page1 = await requestReposPage(octokit, 1);
   const page2 = await requestReposPage(octokit, 2);
 
-  const all = [...page1, ...page2];
-
-  // truncate for testing purposes
-  return [all[0]]; 
+  return [...page1, ...page2];
 };
 
-const cloneRepos = async (repos: Array<GitRepo>) => {
+const cloneRepos = async (octokit: Octokit, repos: Array<GitRepo>) => {
   makeWorkingDirectory();
-  await forEachSynchronous(repos, cloneRepo);
-  await forEachSynchronous(repos, renameDefaultBranch);
+  await forEachSynchronous(repos, renameDefaultBranch(octokit));
   removeWorkingDirectory();
-}
-
-const cloneRepo = async (repo: GitRepo) => {
-  log(`Cloning Repo ${repo.full_name}`);
-
-  await shellExec(`git clone ${repo.ssh_url}`);
 };
 
-const isMasterTheDefaultBranch = ({default_branch}: GitRepo): boolean => {
-  return default_branch === 'master';
-}
-
-const renameDefaultBranch = async (repo: GitRepo): Promise<void> => {
+const renameDefaultBranch = (octokit: Octokit) => async (repo: GitRepo): Promise<void> => {
   if (!isMasterTheDefaultBranch(repo)) {
+    log(`${repo.full_name} already has a default branch of ${repo.default_branch}`);
     return;
   }
 
-  shell.cd(`./${repo.name}`);
-  // await shellExec('git branch -m master main');
-  // await shellExec('git push -u origin main');
-  shell.git.status();
-  shell.cd(`../`);
+  const REPO_DIR = `./${repo.name}`;
+
+  // clone
+  await shellExec(`git clone ${repo.ssh_url}`);
+
+  // check if the repo is empty
+  if (isRepoEmpty(REPO_DIR)) {
+    log(`${repo.full_name} is an empty repository`);
+    return;
+  }
+
+  // move branch
+  const git: SimpleGit = simpleGit(REPO_DIR);
+  await git.branch(['-m', 'master', 'main']);
+  await git.push('origin', 'main', ['u']);
+
+  // change default
+  await octokit.request(`/repos/${repo.owner.login}/${repo.name}`, {
+    method: 'PATCH',
+    data: {'default_branch': 'main'}
+  });
 };
 
 // main loop
 const main = async () => {
   const octokit = new Octokit({
-    auth: ACCESS_TOKEN,
+    auth: settings.ACCESS_TOKEN,
   });
 
   log('Getting repos');
   const repos = await requestRepos(octokit);
 
   log('Cloning Repos');
-  await cloneRepos(repos);
+  await cloneRepos(octokit, repos);
 
   log('Done');
 }

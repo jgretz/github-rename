@@ -1,24 +1,16 @@
-import {FunctionComponent, ReactNode} from 'react';
+export interface PrivateSettings {
+  ACCESS_TOKEN: string;
+}
 
-export type StringKeyMap<T> = {[key: string]: T};
+export interface GitRepoOwner {
+  login: string;
+}
 
-export type DependencyList<T> = Array<keyof T> | undefined;
-export type ComponentTransform = (component: FunctionComponent | undefined) => FunctionComponent;
-export type RenderTransform = (previousStatement: string | undefined) => string;
+export interface GitRepo {
+  owner: GitRepoOwner;
+  name: string;
+  full_name: string;
+  ssh_url: string;
+  default_branch: string;
+}
 
-export type EnhancerResult = {
-  dependencies: StringKeyMap<unknown>;
-  initialize: string;
-  props: string[];
-  transformRender?: RenderTransform;
-  transformComponent?: ComponentTransform;
-};
-
-export type EnhancerContext = {
-  component: ReactNode;
-  generateNewVariable: () => string;
-};
-
-export type Enhancer = (context: EnhancerContext) => EnhancerResult;
-
-export type EnhancerList = Enhancer[] | (Enhancer | Enhancer[])[];
